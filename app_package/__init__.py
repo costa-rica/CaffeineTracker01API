@@ -5,7 +5,8 @@ import logging
 from logging.handlers import RotatingFileHandler
 from pytz import timezone
 from datetime import datetime
-
+from flask_mail import Mail
+from ct01_models import login_manager
 
 
 if not os.path.exists(os.path.join(os.environ.get('WEB_ROOT'),'logs')):
@@ -37,15 +38,20 @@ logger_init.addHandler(stream_handler)
 logging.getLogger('werkzeug').setLevel(logging.DEBUG)
 logging.getLogger('werkzeug').addHandler(file_handler)
 
-logger_init.info(f'--- Starting Flask Starter---')
+logger_init.info(f'--- Starting CaffeineTrackerAPI ---')
 
+mail = Mail()
 
 def create_app(config_for_flask = config):
     app = Flask(__name__)   
     app.config.from_object(config_for_flask)
+    login_manager.init_app(app)
+    mail.init_app(app)
 
     from app_package.main.routes import main
+    from app_package.users.routes import users
 
     app.register_blueprint(main)
+    app.register_blueprint(users)
 
     return app

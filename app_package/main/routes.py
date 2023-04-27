@@ -5,7 +5,9 @@ import logging
 from logging.handlers import RotatingFileHandler
 from datetime import datetime
 from ct01_models import sess, Users, CaffeineLog
+from flask_login import login_required, login_user, logout_user, current_user
 
+from app_package.token_decorator import token_required
 
 main = Blueprint('main', __name__)
 
@@ -32,6 +34,45 @@ def check_status():
     status_message = f"Running as of {today_string}"
     print(status_message)
     return jsonify({"status":status_message})
+
+
+@main.route("/check_auth", methods=["GET"])
+@token_required
+def check_auth(current_user):
+
+    return jsonify({"status": f"logged in as {current_user.email} -- success!"})
+
+
+
+@main.route("/caffeine_log_update_new", methods=["POST"])
+@token_required
+def caffeine_log_update_new(current_user):
+    logger_main.info(f"- accessed /caffeine_log_update_new ")
+
+    try:
+        request_json = request.json
+    except Exception as e:
+        print("failed reqeust.json")
+        logger_main.info(e)
+        return jsonify({"status": "httpBody data recieved not json not parse-able."})
+
+    #NOTE: This works from jupyter notebook -- might not work from swift app --> user caffeine_log_update route
+    existing_log = sess.query(CaffeineLog).filter_by(uuid = request_json.get('uuid')).first()
+    if not existing_log :
+        new_log = CaffeineLog(user_id=current_user.id)
+        for key, value in request_json.items():
+            # NOTE: drink_logs come in as dictionaries with their data types intact -- super useful!
+            if key not in ['id','user_id']:
+                setattr(new_log,key,value)
+            
+        sess.add(new_log)
+        sess.commit()
+        print(f"Log ID: {new_log.id}, has been added!")
+    else:
+        print(f"UUID: {existing_log.uuid}, already exists in database.")
+    
+
+    return jsonify({"status":"successfully updated caffeine log", "drink_id":str(new_log.id)})
 
 
 @main.route("/user", methods=["GET","POST"])
@@ -69,6 +110,7 @@ def user():
         logger_main.info(f"-- YES, existing_user found --")
         # print(id:)
         return jsonify({"id":str(existing_user.id),"email":existing_user.email,"username":existing_user.username})
+
 
 @main.route("/caffeine_log_update", methods=["GET","POST"])
 def caffeine_log_update():
@@ -118,3 +160,10 @@ def delete_log_entry():
     logger_main.info(f"Successfully deleted uuid: {uuid_to_delete}")
 
     return jsonify({"status":f"Successfully deleted uuid: {uuid_to_delete}"})
+
+
+@main.route("/test_login", methods=["GET"])
+@login_required
+def test_login():
+
+    return jsonify({"status":f"User email: {current_user.id} successfully logged in and has access"})
