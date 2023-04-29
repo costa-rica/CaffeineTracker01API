@@ -76,7 +76,7 @@ def login():
         # token = s.dumps({'user_id': user.id})# This is not right just testing to get Swift  response
         print("token sending back: ", token)
         print(type(token))
-        return jsonify({'token': token})
+        return jsonify({'token': token,'user_id':str(user.id)})
 
     return make_response('Could not verify', 401, {'message' : 'email/password are not valid'})
 
@@ -116,6 +116,7 @@ def register():
 
     check_email = sess.query(Users).filter_by(email = new_email).all()
     if len(check_email)==1:
+        logger_users.info(f"- email already in database -")
         existing_emails = [i.email for i in sess.query(Users).all()]
         return jsonify({"existing_emails": existing_emails})
 
